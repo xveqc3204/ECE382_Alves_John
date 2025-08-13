@@ -70,7 +70,7 @@ Loop1   CMP     R0, #5          ; Observe PSR after executing this instruction.
 
 L2      MOV     R0, #5
 Loop2   SUB     R0, #1
-        CMP     R0, #0          ; Observe PSR after executing this instruction.
+        CMP     R0, #1          ; Observe PSR after executing this instruction.
         BHS     Loop2           ; Brach Higher or Same, if R0 >= 0, go to Loop2
                                 ; If R0 < 0, exit the loop.
 
