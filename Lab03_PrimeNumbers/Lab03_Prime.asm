@@ -83,8 +83,8 @@ Loop1:
 Loop2:
 ; ============ Add your code below ==============================
 ; solution
-								; Compare i with m (i > n / 2?)
-								; If i > m, the number is prime (branch to True)
+		CMP		R6,	R5			; Compare i with m (i > n / 2?)
+		BGT		True			; If i > m, the number is prime (branch to True)
                                 ; Caution: are you checking signed or unsigned numbers?
 
 ; ============= End of your code ================================
@@ -97,14 +97,19 @@ Loop2:
 ; ============ Add your code below ==============================
 ; solution
 
+        BEQ     False
+        ADD     R6, #1
+        B       Loop2
 
 
+True    MOV     R10, #1
+        STR     R10, [R2], #1
+        B       Loop1
 
-True
 
-
-
-False
+False   MOV     R11, #0
+        STR     R11, [R2], #1
+        B       Loop1           ;Don't Care: STR R12 ,[R2] which before this has MOV R12 #'x' has executed
 
 
 
