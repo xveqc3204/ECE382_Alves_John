@@ -61,16 +61,28 @@ Encrypt:   .asmfunc
 ; ============ Add your code and comments below ===================
 
     ; Use EOM defined at line 44 for '#'
+    PUSH {LR}
+    PUSH {R4-R11}
 
+    LDRB R4, EOM
+    MOV  R5,  R0 ;unencrypted
+    MOV  R6,  R1  ;key
+    MOV  R7,  R2 ;EMAddr
 
+Loop1:
+    LDRB R8, [R5], #1 ;uncrypted++
+    MOV  R0,  R8 ;unencrypted -> input
+    MOV  R1,  R6 ;key -> input
+    BL XOR_bytes        ;XOR_Bytes
 
+    STRB R0, [R7], #1 ;store XORed byte to EMAddr then ++
 
-    ; You must use the XOR_bytes function for exclusive or!
-    BL XOR_bytes        ; XOR_Bytes
+    CMP  R8, R4         ;if bit is equal to #
+    BNE  Loop1
 
-
-
-
+    POP {R4-R11}
+    POP {LR}
+    BX   LR
 
 ; =============== End of your code ================================
     .endasmfunc
@@ -92,16 +104,28 @@ Encrypt:   .asmfunc
 Decrypt:    .asmfunc
 ; ============ Add your code and comments below ===================
 
-    ; Use EOM defined at line 44 for '#'
+    PUSH {LR}
+    PUSH {R4-R11}
 
+    LDRB R4, EOM
+    MOV  R5,  R0  ;unencrypted
+    MOV  R6,  R1  ;key
+    MOV  R7,  R2  ;DMAddr
 
+Loop2:
+    LDRB R8, [R5], #1
+    MOV  R0,  R8
+    MOV  R1,  R6
+    BL XOR_bytes         ;XOR_Bytes
 
+    STRB R0, [R7], #1
 
-    ; You must use the XOR_bytes function for exclusive or!
-    BL XOR_bytes        ; XOR_Bytes
+    CMP  R0, R4          ;if bit is equal to #
+    BNE  Loop2
 
-
-
+    POP {R4-R11}
+    POP {LR}
+    BX  LR
 
 ; =============== End of your code ================================
     .endasmfunc
