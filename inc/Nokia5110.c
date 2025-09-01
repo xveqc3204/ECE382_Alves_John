@@ -86,6 +86,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include "msp.h"
 #include "SPIA3.h"
 
@@ -404,7 +405,9 @@ void Nokia5110_OutString(const char* ptr){
 
     // You write this as part of Lab 5
     // You must use Nokia5110_OutChar
-
+    while(*ptr != '\0')){
+        Nokia5110_OutChar(*ptr++);
+    }
 }
 
 

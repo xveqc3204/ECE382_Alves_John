@@ -93,14 +93,17 @@ Stall   B        Stall          ; Stay here forever and observe the results in M
 fact_iter:  .asmfunc            ; Begin assembly function
 
 ; ============ Add your code and comments below ===================
-                        ; Move R0 to another register so that we can use R0 for return value.
-                        ; Initalize return value; ret = 1
-Loop3                   ; n==0?
-                        ; If equal, done; else, execute the following lines.
-                        ; ret = ret * n
-                        ; n--
-                        ; while(n != 0)
-Exit1                   ; Return
+       PUSH {R4-R11}
+       MOV R4, R0       ; Move R0 to another register so that we can use R0 for return value.
+       MOV R0, #1       ; Initalize return value; ret = 1
+Loop3  CMP R4, #0                ; n==0?
+       BEQ Exit1                 ; If equal, done; else, execute the following lines.
+       MUL R0, R4                 ; ret = ret * n
+       SUB R4, #1                 ; n--
+       B   Loop3                 ; while(n != 0)
+       POP {R4-R11}
+Exit1
+       BX  LR                  ; Return
 ; ============= End of your code ================================
 
         .endasmfunc
@@ -115,12 +118,13 @@ fact_rec:   .asmfunc            ; Begin assembly function
         BX      LR              ; Return
 
 ; ============ Add your code and comments below ===================
-Recur                   ; Preserve registers
-                        ; Save n for later use
-                        ; n-1
-                        ; fact_rec(n-1) for (n-1)!
-                        ; n * fact_rec(n-1)
-                        ; Restore registers and return
+Recur    PUSH {LR, R4-R11}      ; Preserve registers
+         MOV  R4, R0            ; Save n for later use
+         SUB  R0, #1            ; n-1
+         BL   fact_rec          ; fact_rec(n-1) for (n-1)!
+         MUL  R0, R4            ; n * fact_rec(n-1)
+         POP {LR, R4,R11}
+         BX   LR                ; Restore registers and return
 ; ============= End of your code ================================
 
         .endasmfunc
