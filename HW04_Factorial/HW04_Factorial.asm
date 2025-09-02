@@ -123,7 +123,7 @@ Recur    PUSH {LR, R4-R11}      ; Preserve registers
          SUB  R0, #1            ; n-1
          BL   fact_rec          ; fact_rec(n-1) for (n-1)!
          MUL  R0, R4            ; n * fact_rec(n-1)
-         POP {LR, R4,R11}
+         POP {LR, R4-R11}
          BX   LR                ; Restore registers and return
 ; ============= End of your code ================================
 
