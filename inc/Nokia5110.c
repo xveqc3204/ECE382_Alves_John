@@ -405,7 +405,7 @@ void Nokia5110_OutString(const char* ptr){
 
     // You write this as part of Lab 5
     // You must use Nokia5110_OutChar
-    while(*ptr != '\0')){
+    while(*ptr != '\0'){
         Nokia5110_OutChar(*ptr++);
     }
 }
@@ -447,7 +447,24 @@ void Nokia5110_OutUDec(uint32_t n, int min_length){
     // Write this as part of Lab 5
 
     // Convert the number into a reversed string.
+    int spaces = -1;
     int count = Nokia_Num2String(n);
+
+    if (min_length > count){
+        spaces = min_length - count;
+        // Add Spaces if min_length < count for alignment purposes
+        for (int i = 0; i < spaces; i++){
+            Nokia5110_OutChar(' ');
+        }
+        for (int i = count-1; i >= 0; i--){
+            Nokia5110_OutChar(Buffer[i]);
+        }
+    }
+    else {
+        for (int i = count-1; i >= 0; i--){
+            Nokia5110_OutChar(Buffer[i]);
+        }
+    }
 }
 
 
@@ -458,10 +475,30 @@ void Nokia5110_OutSDec(int32_t n, int min_length){
     // Ensure the magnitude of -2147483648(0x80000000) is 2147483648(0x80000000).
     // You are not allowed to use the built-in abs() function.
     uint32_t x = 0;
+    if (n < 0){
+        x = -n;
+    }
+    else{
+        x = n;
+    }
 
     // Convert the number into a reversed string.
     int count = Nokia_Num2String(x);
+    int spaces = min_length - count;
 
+    while(spaces > 1){
+        Nokia5110_OutChar(' ');
+        spaces--;
+    }
+    if((n & 0x80000000) == 0x80000000){
+        Nokia5110_OutChar('-');
+    }
+    else{
+        Nokia5110_OutChar(' ');
+    }
+    for (int i = count-1; i >= 0; i--){
+        Nokia5110_OutChar(Buffer[i]);
+    }
 }
 
 
