@@ -21,7 +21,7 @@ P1OUT   .word 0x40004C02  ; replace 0 with the address
 
 ; Use this delay for Homework 8.
 ; You need to adjust this value in Lab8.
-DELAY   .word 1200000
+DELAY   .word 1999200
 
         ; global functions external function can access these functions.
         .global LED_Init
