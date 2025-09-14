@@ -95,14 +95,20 @@ void Flash(void) {
 
     static uint16_t Time_1ms = 0;
 
-    // Use Time_1ms to keep the LED light RED for 5 ms and BLUE for 5 ms.
-
-
-
-
-    // increment Time_1ms every time this function is executed.
-    // if it increments to 10, roll over to 0.
-
+    if (Time_1ms == 10){
+        Time_1ms = 0;
+    }
+    else if(Time_1ms == 0){
+        LaunchPad_RGB(RED);
+        Time_1ms++;
+    }
+    else if (Time_1ms == 5){
+        LaunchPad_RGB(BLUE);
+        Time_1ms++;
+    }
+    else{
+        Time_1ms++;
+    }
 }
 
 
@@ -174,7 +180,6 @@ void TimerTask(void) {  // called every 1ms
 
     Increment();
     Time_1ms++;
-
 }
 
 void Program10_3(void){
@@ -202,10 +207,12 @@ void Program10_3(void){
     LaunchPad_RGB(MAGENTA);
     uint16_t count;
 
-    //EnableInterrupts();     // uncomment for background thread
+    EnableInterrupts();     // uncomment for background thread
 
     for (int i = 0; i < 1000; i++) {
+        int32_t sr = StartCritical();
         count = Increment();        // uncomment for foreground thread
+        EndCritical(sr);
         Clock_Delay1us(1000);
     }
 
@@ -219,13 +226,14 @@ void Program10_3(void){
         // go to low power mode while waiting for the next interrupt.
         WaitForInterrupt();
     }
+
 }
 
 
 void main(void) {
 
     // Program10_1();
-    // Program10_2();
-    Program10_3();
+    Program10_2();
+    // Program10_3();
 
 }
