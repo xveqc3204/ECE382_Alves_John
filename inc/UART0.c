@@ -102,7 +102,7 @@ void UART0_Init(uint32_t baudrate){
     EUSCI_A0->MCTLW = 0;
     
     // Configure P1.3 and P1.2 as primary UART function pins
-    P1->SEL0
+    P1->SEL0           0000 1100 -> 0x0C
     P1->SEL1
 
     // enable the USCI module
@@ -111,6 +111,16 @@ void UART0_Init(uint32_t baudrate){
     // Disable UART interrupts (transmit ready, receive full, etc.)
     EUSCI_A0->IE
     */
+
+    //following comments above
+    EUSCI_A0->CTLW0 |= 0x0001;
+    EUSCI_A0->CTLW0 = 0x00C1; //set equal not set bit
+    EUSCI_A0->BRW = 120000000/baudrate; //baudrate input
+    EUSCI_A0->MCTLW = 0;
+    P1->SEL0 |= 0x0C; // set to one
+    P1->SEL1 &= ~0x0C; // reset
+    EUSCI_A0->CTLW0 &= ~0x0001;
+    EUSCI_A0->IE &= ~0x000F;
 }
 
 //------------UART0_InChar------------
@@ -129,9 +139,10 @@ char UART0_InChar(void) {
 // Input: 8-bit ASCII character to be transmitted
 // Output: none
 void UART0_OutChar(char data){
-    // you write this as part of Lab 11
-
-
+    // wait until UCTXIFG becomes 1
+    while ((EUSCI_A0->IFG & 0x02) == 0);
+    //Now TXBUF is empty so write data
+    EUSCI_A0->TXBUF = data;
 }
 
 
@@ -140,9 +151,11 @@ void UART0_OutChar(char data){
 // Input: pointer to the null-terminated string
 // Output: none
 void UART0_OutString(const char* ptr){
-    // you write this as part of Lab 11
-    // You must use UART0_OutChar
 
+    while (*ptr != 0){ // Iterate through string until null character
+        UART0_OutChar(*ptr);
+        ptr++; //Increment
+    }
 }
 
 //===============================================================

@@ -83,7 +83,7 @@ void SPIA3_Init(void) {
     // bits5-2                  reserved
     // bit1       UCSTEM = 1;   UCSTE pin enables slave
     // bit0       UCSWRST = 1;  reset enabled
-    EUSCI_A3->CTLW0
+    EUSCI_A3->CTLW0        1010 A 1101 D 1000 8 0011 3
 
     // set the baud rate for the eUSCI which gets its clock from SMCLK
     // Clock_Init48MHz() from ClockSystem.c sets SMCLK = HFXTCLK/4 = 12 MHz
@@ -94,7 +94,7 @@ void SPIA3_Init(void) {
     EUSCI_A3->MCTLW
     
     // configure P9.7, P9.5, and P9.4 as primary module function
-    P9->SEL0
+    P9->SEL0       1011 0000
     P9->SEL1
 
     // enable eUSCI module
@@ -103,6 +103,16 @@ void SPIA3_Init(void) {
     // disable interrupts
     EUSCI_A3->IE
     */
+
+    //following comments above
+    EUSCI_A3->CTLW0 |= 0x0001;
+    EUSCI_A3->CTLW0 = 0xAD83; //set equal dont toggle
+    EUSCI_A3->BRW = 3; //set equal to 3
+    EUSCI_A3->MCTLW = 0;
+    P9->SEL0 |= 0xB0;
+    P9->SEL1 &= ~0xB0;
+    EUSCI_A3->CTLW0 &= ~0x0001;
+    EUSCI_A3->IE &= ~0x0003;
 }
 
 //********SPIA3_Wait4Tx*****************
@@ -112,7 +122,9 @@ void SPIA3_Init(void) {
 void SPIA3_Wait4Tx(void) {
 
     // Wait for transmitter to be empty (UCTXIFG)
-
+    while((EUSCI_A3->IFG & 0x02) == 0) { //mask with the same as UART
+    //do nothing
+    }
 }
 
 //********SPIA3_Wait4TxRxReady*****************
@@ -137,7 +149,7 @@ void SPIA3_Wait4TxRxReady(void) {
 void SPIA3_WriteTxBuffer(char data) {
 
     // Send data using TXBUF
-
+    EUSCI_A3->TXBUF = data; //write data
 }
 
 
@@ -150,7 +162,8 @@ void SPIA3_WriteTxBuffer(char data) {
 void SPIA3_OutChar(char data) {
     // 1) Wait for transmitter to be empty (let previous frame finish)
     // 2) Write data to TXBUF, starts SPI
-
+    while((EUSCI_A3->IFG & 0x02) == 0);
+    EUSCI_A3->TXBUF = data;
 }
 
 
@@ -160,6 +173,9 @@ void SPIA3_OutChar(char data) {
 // Output: none
 void SPIA3_OutString(const char* ptr){
 
-    // you write this as part of Lab 11
-
+    // iterate same as UART
+    while (*ptr != 0){ //check for null character
+        SPIA3_OutChar(*ptr);
+        ptr++; //increment
+    }
 }
