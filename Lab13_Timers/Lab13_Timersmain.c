@@ -1,4 +1,4 @@
-// Lab13_Timersmain.c
+    // Lab13_Timersmain.c
 // Runs on MSP432
 // Student starter code for Timers lab
 // Daniel and Jonathan Valvano
@@ -140,7 +140,7 @@ void Program13_1(void) {
         }
 
         if (LaunchPad_SW()) {   // Any switch is pressed
-            NVIC->ISER[0] = 0x00000400;
+            NVIC->ISER[0] &= ~0x00000400;
             TIMER_A1->CTL |= 0x0014;
         }
     }
@@ -203,9 +203,32 @@ void MotorController(void){
     uint16_t leftDuty_permil = 0; //0 %
     uint16_t rightDuty_permil = 0; //0 %
 
-	// Write this for Lab 13
+    if (0 == Timer_10ms) {
+        leftDuty_permil = 250; //25%
+        rightDuty_permil = 250; //25%
+        Motor_Forward(leftDuty_permil,rightDuty_permil); //Call move forward function
+    } else if (200 == Timer_10ms) {
+        Motor_Coast();
+    } else if (400 == Timer_10ms) {
+        leftDuty_permil = 250; //25%
+        rightDuty_permil = 250; //25%
+        Motor_Backward(leftDuty_permil,rightDuty_permil); //Call move backward function
+    } else if (600 == Timer_10ms) {
+        leftDuty_permil = 250; //25%
+        rightDuty_permil = 250; //25%
+        Motor_TurnLeft(leftDuty_permil,rightDuty_permil); //Call turn left function
+    } else if (800 == Timer_10ms) {
+        leftDuty_permil = 250; //25%
+        rightDuty_permil = 250; //25%
+        Motor_TurnRight(leftDuty_permil,rightDuty_permil); //Call turn right function
+    }
 
-
+    if(1000 == Timer_10ms){
+        Timer_10ms = 0;
+    }
+    else{
+        Timer_10ms++;
+    }
 }
 
 
@@ -236,8 +259,8 @@ void Program13_3(void) {
 	// Write this for Lab 13
 
     // Initialize Timer A1 to run MotorController at 100 Hz
-	// const uint16_t period_2us =      ; // T = 5,000 * 2us = 10ms --> 100 Hz
-	// TimerA1_Init(/*pass a function pointer here*/, period_2us);  // 100 Hz
+	 const uint16_t period_2us = 5000;   // T = 5,000 * 2us = 10ms --> 100 Hz
+	 TimerA1_Init(&MotorController, period_2us);  // 100 Hz
 
     // Enable Interrupts
     EnableInterrupts();
@@ -260,7 +283,7 @@ void Program13_3(void) {
 
 }
 int main(void){
-	Program13_1();
-	//Program13_2();
-	//Program13_3();
+//	Program13_1();
+//	Program13_2();
+	Program13_3();
 }
