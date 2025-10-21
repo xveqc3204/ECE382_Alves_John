@@ -50,14 +50,11 @@ policies, either expressed or implied, of the FreeBSD Project.
 void ADC0_InitSWTriggerCh17_14_16(void){
     // you can use any of the MEM[n], MCTL[n] except n=6 (6 is used by TExaS)
 
-    // write this for Lab 15
-
-    /*
     // 1. ADC14ENC = 0 to allow programming
-    ADC14->CTL0
+    ADC14->CTL0 &= ~0x2;
 
     // 2. wait for BUSY to be zero
-    while(ADC14->CTL0 &                   );
+    while(ADC14->CTL0 & 0x10000); // bit 16 of ADC14->CTL0
 
     // 3. ADC14CTL0: single, SMCLK, on, disabled, /1, 32 SHT
     // 31-30 ADC14PDIV  predivider,             Predivide by 1
@@ -76,7 +73,7 @@ void ADC0_InitSWTriggerCh17_14_16(void){
     // 3-2   reserved                           (reserved)
     // 1     ADC14ENC   enable conversion       ADC14 disabled
     // 0     ADC14SC    ADC14 start             No start (yet)
-    ADC14->CTL0
+    ADC14->CTL0 = 0x4223390; //0x04223390;
 
     // 4. ADC14CTL1: 14-bit, ref on, regular power, start with MEM2
     // 20-16 STARTADDx  start addr              ADC14MEM2
@@ -85,7 +82,7 @@ void ADC0_InitSWTriggerCh17_14_16(void){
     // 3     ADC14DF    data read-back format   Binary unsigned
     // 2     REFBURST   reference buffer burst  reference on continuously
     // 1-0   ADC14PWRMD ADC power modes         Regular power mode
-    ADC14->CTL1
+    ADC14->CTL1 = 0x20030; //0x000020030;
 
     // 5.a channel 17, 0 to 3.3V, not end of sequence
     // 15   ADC14WINCTH Window comp threshold   not used
@@ -96,7 +93,7 @@ void ADC0_InitSWTriggerCh17_14_16(void){
     // 7    ADC14EOS    End of sequence         Not end of sequence
     // 6-5  reserved                            (reserved)
     // 4-0  ADC14INCHx  Input channel           A17
-    ADC14->MCTL[ ]
+    ADC14->MCTL[2] = 0x11;
 
     // 5.b channel 14, 0 to 3.3V, not end of sequence
     // 15   ADC14WINCTH Window comp threshold   not used
@@ -107,7 +104,7 @@ void ADC0_InitSWTriggerCh17_14_16(void){
     // 7    ADC14EOS    End of sequence         Not end of sequence
     // 6-5  reserved                            (reserved)
     // 4-0  ADC14INCHx  Input channel           A14
-    ADC14->MCTL[ ]
+    ADC14->MCTL[3] = 0xE;
 
     // 5.c channel 16, 0 to 3.3V, end of sequence
     // 15   ADC14WINCTH Window comp threshold   not used
@@ -118,22 +115,22 @@ void ADC0_InitSWTriggerCh17_14_16(void){
     // 7    ADC14EOS    End of sequence         End of sequence
     // 6-5  reserved                            (reserved)
     // 4-0  ADC14INCHx  Input channel           A16
-    ADC14->MCTL[ ]
+    ADC14->MCTL[4] = 0x90;
 
     // 6. no interrupts
-    ADC14->IER0
-    ADC14->IER1
+    ADC14->IER0 = 0;
+    ADC14->IER1 = 0;
 
     // 7.a analog mode on P6.1/A14
-
+    P6->SEL1 |= 0x2;
+    P6->SEL0 |= 0x2;
 
     // 7.b analog mode on P9.0/A17 and P9.1/A16
-
+    P9->SEL1 |= 0x3;
+    P9->SEL0 |= 0x3;
 
     // 8. enable ADC14
-    ADC14->CTL0
-    */
-
+    ADC14->CTL0 |= 0x00000002;
 }
 
 // ADC14IFGR0 bit 4 is set when conversion done
@@ -143,20 +140,16 @@ void ADC0_InitSWTriggerCh17_14_16(void){
 // ADC14MEM4 14-bit conversion in bits 13-0 (31-16 undefined, 15-14 zero)
 // Lab 15 assignment RSLK 1.1, use software trigger, 3.3V reference
 void ADC_In17_14_16(uint16_t *ch17, uint16_t *ch14, uint16_t *ch16){
-
-    // you write this as part of Lab 15
-	
     // 1. wait for BUSY to be zero
-
-
+    while(ADC14->CTL0 & 0x10000); // bit 16 of ADC14->CTL0
     // 2. start single conversion
-	
+    ADC14->CTL0 |= 0x1; // ADC14SC = 1
 	// 3. wait for ADC14IFG4
-	
+    while((ADC14->IFGR0 & (1 << 4)) == 0); // Wait for MEM4 to finish
     // 4.a P9.0/A17 result
-    // *ch17 =
+    *ch17 = (ADC14->MEM[2] & 0x3FFF); //Friendly only selecting the first 14 bits
     // 4b) P6.1/A14 result
-    // *ch14 =
+    *ch14 = (ADC14->MEM[3]  & 0x3FFF); //Friendly only selecting the first 14 bits
     // 4c) P9.1/A16 result
-    // *ch16 =
+    *ch16 = (ADC14->MEM[4]  & 0x3FFF); //Friendly only selecting the first 14 bits
 }

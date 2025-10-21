@@ -49,12 +49,12 @@
 
 
 // Complete the following lines
-//#define SIDEMAX     // largest side distance to wall in mm
-//#define SIDEMIN     // smallest side distance to wall in mm
-//#define CENTEROPEN  // distance to wall between open/blocked
-//#define CENTERMIN   // min distance to wall in the front
-//#define IRMIN       // min possible reading of IR sensor
-//#define IRMAX       // max possible reading of IR sensor
+#define SIDEMIN    212   // smallest side distance to the wall in mm
+#define SIDEMAX    354   // largest side distance to wall in mm
+#define CENTERMIN  150   // min distance to the wall in the front
+#define CENTEROPEN 600   // distance to the wall between open/blocked
+#define IRMIN      50    // min possible reading of IR sensor
+#define IRMAX      800   // max possible reading of IR sensor
 
 
 /* Classify
@@ -74,9 +74,62 @@
 scenario_t Classify(int32_t left_mm, int32_t center_mm, int32_t right_mm) {
 
     scenario_t result = ClassificationError;
+    int state = 0;
 
-    // Add your your code here
+    //ClassificationError (0) if any of the sensors report distances less than 50 mm or greater than 800 mm.
+    if ((left_mm < IRMIN)|| (center_mm < IRMIN) || (right_mm < IRMIN) ||
+       (left_mm > IRMAX) || (center_mm > IRMAX) || (right_mm > IRMAX)){
+        return ClassificationError;
+    }
 
+    //LeftTooClose (1) if the left sensor reports a distance less than 212 mm.
+    if (left_mm < SIDEMIN){
+        state += LeftTooClose;
+    }
+    //RightTooClose (2) if the right sensor reports a distance less than 212 mm.
+    if (right_mm < SIDEMIN){
+        state += RightTooClose;
+    }
+    //CenterTooClose (4) if the center sensor reports a distance less than 150 mm.
+    if (center_mm < CENTERMIN){
+        state += CenterTooClose;
+    }
+
+    //In the case where it does not read anything, return ClassificationError
+    if(state){
+        return (scenario_t)state;
+    }
+
+    //{Blocked, Right Turn, Left Turn, Tee Joint}: When the center sensor measures a distance less than 600 mm.
+    if (center_mm < CENTEROPEN){
+        if ((left_mm >= SIDEMAX) && (right_mm >= SIDEMAX)){
+            result = TeeJoint;
+        }
+        else if (right_mm >= SIDEMAX){
+            result = RightTurn;
+        }
+        else if (left_mm >= SIDEMAX){
+            result = LeftTurn;
+        }
+        else if (center_mm >= CENTERMIN){
+            result = Blocked;
+        }
+    }
+    //{Straight, Right Joint, Left Joint, Cross Road}: When the center sensor measures a distance greater than or equal to 600 mm.
+    if (center_mm >= CENTEROPEN){
+        if ((left_mm >= SIDEMAX) && (right_mm >= SIDEMAX)){
+            result = CrossRoad;
+        }
+        else if (right_mm >= SIDEMAX){
+            result = RightJoint;
+        }
+        else if (left_mm >= SIDEMAX){
+            result = LeftJoint;
+        }
+        else if (center_mm >= CENTERMIN){
+            result = Straight;
+        }
+    }
 
     return result;
 }
