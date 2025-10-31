@@ -112,16 +112,18 @@ void LCDClear1(void){
 
 // Display Tachometer data
 void LCDSpeed1(void){
-
-    // Write this as part of Lab 16
-
-
-
-
-
-
-
-
+    // At row 3 display the period for left right
+    Nokia5110_SetCursor2(3,3);
+    Nokia5110_OutUDec(LeftPeriod,5);
+    Nokia5110_OutUDec(RightPeriod, 5);
+    // At row 4 display the speed for left right
+    Nokia5110_SetCursor2(4,3);
+    Nokia5110_OutUDec(LeftSpeed_rpm,5);
+    Nokia5110_OutUDec(RightSpeed_rpm, 5);
+    // At row 5 display the filtered right ADC data and the right distance
+    Nokia5110_SetCursor2(5,3);
+    Nokia5110_OutUDec(LeftDistance_mm,5);
+    Nokia5110_OutUDec(RightDistance_mm, 5);
 }
 
 // Transmit data stored in buffers to the PC via UART.
@@ -265,10 +267,10 @@ void Collect1(void) {
 
     // ========== Step 3: Adjust Motor Duty Cycle ==========
     // Update motor duty cycle and move motors forward at different power levels based on elapsed time.
-    if(0 == time_10ms) {                // At the start (0 ms), set duty cycle to 20%.
+    if(time_10ms == 0) {                // At the start (0 ms), set duty cycle to 20%.
         duty_permil = 200;              // 20% duty cycle (200/1000)
         Motor_Forward(duty_permil, duty_permil);
-    } else if(200 == time_10ms) {       // At 2 seconds (200 * 10 ms), set duty cycle to 40%.
+    } else if(time_10ms == 200) {       // At 2 seconds (200 * 10 ms), set duty cycle to 40%.
         duty_permil = 400;              // 40% duty cycle
         Motor_Forward(duty_permil, duty_permil);
     } else if(time_10ms == 400) {       // At 4 seconds (400 * 10 ms), set duty cycle to 60%.
@@ -298,6 +300,7 @@ void Collect1(void) {
 
         // Update the LCD display with the current speed and distance data.
         LCDSpeed1();
+
     }
 
     // ========== Step 5: Heartbeat Indicator ==========
@@ -308,7 +311,7 @@ void Collect1(void) {
 
     // ========== Step 6: Stop Condition ==========
     // If we have collected data for 10 seconds or if a bump sensor is triggered, stop the motors and the timer.
-    if((1000 == time_10ms) || Bump_Read()){  // Either the time hits 10 seconds or a bump is detected.
+    if((time_10ms == 1000) || Bump_Read()){  // Either the time hits 10 seconds or a bump is detected.
         duty_permil = 0;                     // Set duty cycle to 0 to stop the motors.
         Motor_Coast();                       // Coast the motors (stop them gently).
         IsCollectionDone = true;             // Set the collection flag to indicate data collection is complete.
@@ -333,9 +336,9 @@ int Program16_1(void){
     const uint32_t baudrate = 115200;
     UART0_Init(baudrate);  // Initialize UART0 for communication with a PC.
 
-    // Set up TimerA2 to trigger the Collect1() function every 10 ms (100 Hz frequency).
-    // period_4us = 2500 corresponds to 10 ms (2500 * 4 us = 10 ms).
-    const uint16_t period_4us = 2500;
+    // Set up TimerA2 to trigger the Collect1() function every 20 ms (50 Hz frequency).
+    // period_4us = 5000 corresponds to 20 ms (5000 * 4 us = 20 ms).
+    const uint16_t period_4us = 5000;
     TimerA2_Init(&Collect1, period_4us); // Initialize TimerA2 with Collect1() as the ISR (Interrupt Service Routine).
 
     // Reset the data collection flag to false (no data collected yet).
@@ -355,6 +358,223 @@ int Program16_1(void){
             // If data collection is complete, transmit the collected data via UART to the PC.
             TxBuffer();  // Transmit the speed, distance, and duty cycle data stored in buffers.
         }
+    }
+}
+
+
+// =============== Program 16.2 =====================================
+// Develop a simple speed controller using the tachometer.
+// This program uses feedback from the tachometer to control motor speed
+// and adjust the PWM duty cycle dynamically, keeping the motor speed close to a desired RPM.
+
+// Constants for desired speeds and PWM duty cycle bounds
+#define DESIREDMAX 120  // Maximum desired RPM
+#define DESIREDMIN 30   // Minimum desired RPM
+#define MAXDUTY 999     // Maximum duty cycle (99.9%)
+#define MINDUTY 10      // Minimum duty cycle (1.0%)
+
+// Variables to control motor speed
+static uint16_t DesiredL_rpm = 80;  // Desired left motor RPM, initially set to 80
+static uint16_t DesiredR_rpm = 80;  // Desired right motor RPM, initially set to 80
+static uint16_t ActualL_rpm = 0;    // Measured left motor RPM
+static uint16_t ActualR_rpm = 0;    // Measured right motor RPM
+static uint16_t LeftDuty_permil = 0;  // Left motor duty cycle in permille (1/1000)
+static uint16_t RightDuty_permil = 0; // Right motor duty cycle in permille (1/1000)
+
+// Semaphore to control whether the speed controller is enabled
+bool IsControllerEnabled = false;
+
+// ========== LCD Functions for Display ==========
+void LCDClear2(void){
+
+    // Set LCD contrast and clear the display, preparing it for output
+    uint8_t const contrast = 0xB1;
+    Nokia5110_SetContrast(contrast);
+
+    Nokia5110_Clear();
+    Nokia5110_SetCursor2(1, 1);
+    Nokia5110_OutString("Desired(RPM)L     R     ");
+    Nokia5110_SetCursor2(3, 1);
+    Nokia5110_OutString("Actual (RPM)L     R     ");
+    Nokia5110_SetCursor2(5, 1);
+    Nokia5110_OutString("PWM (permil)L     R     ");
+}
+
+
+void LCDDesired2(void){
+    // Display the desired motor speeds for both left and right motors
+    Nokia5110_SetCursor2(2, 2);         // Desired left RPM
+    Nokia5110_OutUDec(DesiredL_rpm, 5);
+    Nokia5110_SetCursor2(2, 8);         // Desired right RPM
+    Nokia5110_OutUDec(DesiredR_rpm, 5);
+}
+
+void LCDActual2(void){
+    // Display the actual (measured) motor speeds and PWM duty cycles
+
+    // Write your code here for the actual left RPM
+    Nokia5110_SetCursor2(4, 2);
+
+    // Write your code here for the actual right RPM
+    Nokia5110_SetCursor2(4, 8);
+
+    // Write your code here for the left duty cycle (permille)
+    Nokia5110_SetCursor2(6, 1);
+
+    // Write your code here for the right duty cycle (permille)
+    Nokia5110_SetCursor2(6, 7);
+
+}
+
+
+// ========== Update the Desired Speeds ==========
+static void UpdateParameters(void) {
+
+    // Wait until any button press is released
+    while(LaunchPad_SW()) {
+        Clock_Delay1ms(200); LaunchPad_RGB(RGB_OFF);  // Flash off
+        Clock_Delay1ms(200); LaunchPad_RGB(RED);      // Flash red LED
+    }
+
+    // Stop the motors temporarily while updating parameters
+    Motor_Coast();
+    Clock_Delay1ms(300);  // Delay for a smooth stop
+
+    // Prompt the user to adjust the desired speeds using switches
+    // The loop continues until a bump sensor is pressed
+    while(!Bump_Read()) {
+
+        // Display current desired speeds on the LCD
+         LCDDesired2();
+
+         // Right switch pressed: Increase desired right speed by 10 RPM, with wrap-around
+         if((LaunchPad_SW() & SWR_ON)) {
+            // write your code here
+
+        }
+
+         // Left switch pressed: Increase desired left speed by 10 RPM, with wrap-around
+         if((LaunchPad_SW() & SWL_ON)){
+             // write your code here
+
+        }
+
+         // Flash the blue LED while updating speeds to provide feedback
+         BLUELED ^= 1;
+         Clock_Delay1ms(200);
+     }
+
+     // After updating the desired speeds, flash the yellow LED for 2 seconds to indicate confirmation
+     for(int k = 0; k < 10; k++){
+         LaunchPad_RGB(YELLOW);
+         Clock_Delay1ms(100);
+         LaunchPad_RGB(RGB_OFF);
+         Clock_Delay1ms(100);
+     }
+}
+
+
+// This function is called by TA1 ISR every 20 ms.
+void Controller2(void) {
+
+    // Index for the tachometer data buffers
+    static uint8_t idxTachoData = 0;
+
+    // If the controller is disabled, exit the function
+    if(!IsControllerEnabled) { return; }
+
+    // If a switch is pressed, disable the controller and exit the function
+    if (LaunchPad_SW()) {
+        IsControllerEnabled = false;
+        return;
+    }
+
+    // Collect speed data from the tachometers
+    // Write your code here
+
+
+    // Move to the next index in the tachometer buffer, wrapping around when necessary
+    // Write your code here
+    idxTachoData = 0;
+
+    // Calculate the actual motor speeds (in RPM) using an "average filter" to reduce noise
+    // omega (rpm) = PULSE2RPM / N_pulses, where N_pulses is the tachometer period.
+    // Since N_pulses can be noisy, apply a simple low-pass filter (LPF) by averaging the last n readings.
+    // The LeftTachPeriod and RightTachPeriod buffers store the most recent n measurements (TACHBUFF_SIZE).
+    // Use the "average" of these values to reduce noise in the speed calculation.
+
+    // Write your code here
+    ActualL_rpm = 0;
+    ActualR_rpm = 0;
+
+
+
+    // Simple controller logic to adjust the left motor speed:
+    // - Decrease the duty cycle if the actual speed is higher than the desired speed + 3 RPM
+    // - Increase the duty cycle if the actual speed is lower than the desired speed - 3 RPM
+    // Write your code here
+
+
+    // Repeat the same control logic for the right motor
+
+
+
+
+    // Ensure that the duty cycle stays within the defined bounds [MINDUTY, MAXDUTY]
+    // Use the MINMAX macro defined at the beginning of this source file.
+    // Write your code here
+    LeftDuty_permil = 0;
+    RightDuty_permil = 0;
+
+
+    // Drive the motors forward with the updated duty cycle values
+    // Write your code here
+
+    // Update the LCD display to show the actual motor speeds and duty cycles
+    // Write your code here
+
+
+}
+
+
+// ========== Main Program: Speed Controller ==========
+void Program16_2(void){
+
+    // ========== Initialization Phase ==========
+    DisableInterrupts();           // Disable all interrupts during initialization
+    Clock_Init48MHz();              // Set the system clock to 48 MHz
+    LaunchPad_Init();               // Initialize the LaunchPad hardware (switches, LEDs)
+    Bump_Init();                    // Initialize the bump sensors
+    Nokia5110_Init();               // Initialize the Nokia 5110 LCD
+    LCDClear2();                    // Clear and set up the LCD for Program 16.2
+    LCDDesired2();                  // Display the initial desired speeds on the LCD
+    Motor_Init();                   // Initialize the motor driver
+    Tachometer_Init();              // Initialize the tachometers for speed measurements
+
+    // Set up TimerA2 to call the Controller2() function every 20 ms (50 Hz)
+    uint16_t const period_4us = 5000;       // 5000 * 4us = 20ms
+    TimerA2_Init(&Controller2, period_4us); // Initialize TimerA2
+
+    IsControllerEnabled = false;   // Start with the controller disabled
+
+    EnableInterrupts(); // Enable interrupts to allow hardware events to be handled
+
+    // ========== Main Loop ==========
+    while(1) {
+
+        // Enter low-power mode, waiting for the next interrupt
+        WaitForInterrupt();
+
+        // If the controller is already enabled, skip the rest and go back to low power mode
+        if (IsControllerEnabled) {
+            continue;
+        }
+
+        // If the controller is disabled, allow the user to update the desired speeds
+        UpdateParameters();
+
+        // Enable the controller after updating the speeds
+        IsControllerEnabled = true;
     }
 }
 
@@ -384,11 +604,11 @@ typedef struct command {
 } command_t;
 
 // Control parameters for various states (distances and duty cycles)
-#define FRWD_DIST       0   // Replace this line for forward distance
-#define BKWD_DIST       0   // Replace this line for backward distance
-#define TR90_DIST       0   // Replace this line for 90 degree turn
-#define TR60_DIST       0   // Replace this line for 60 degree turn
-#define TR30_DIST       0   // Replace this line for 30 degree turn
+#define FRWD_DIST       700   // Replace this line for forward distance
+#define BKWD_DIST       90    // Replace this line for backward distance
+#define TR90_DIST       111   // Replace this line for 90 degree turn
+#define TR60_DIST       74    // Replace this line for 60 degree turn
+#define TR30_DIST       37    // Replace this line for 30 degree turn
 
 #define NUM_STATES      5     // Number of robot states
 #define LEN_STR_STATE   5     // String length for state names
@@ -399,22 +619,28 @@ command_t ControlCommands[NUM_STATES] = {
     {0,   0,   &Motor_Stop,        0},          // Stop indefinitely
     {200, 200, &Motor_Forward,     FRWD_DIST},  // Move forward until bump sensor triggered
     {150, 150, &Motor_Backward,    BKWD_DIST},  // Move backward for 90mm
-    {150, 150, &Motor_TurnLeft,    0},          // Turn left
-    {150, 150, &Motor_TurnRight,   0}           // Turn right
+    {150, 150, &Motor_TurnLeft,    TR30_DIST},  // Turn left
+    {150, 150, &Motor_TurnRight,   TR30_DIST}   // Turn right
 };
 
 // Clear the LCD and display initial state
 static void LCDClear3(void) {
     Nokia5110_Clear();                  // Clear the entire display
-    Nokia5110_OutString("Lab16:FSM"); // Display the lab title
+    Nokia5110_OutString("Lab13:Timers"); // Display the lab title
     Nokia5110_SetCursor2(3,1); Nokia5110_OutString("ST:");  // Show current state
     Nokia5110_SetCursor2(5, 1); Nokia5110_OutString("D");   // Show distance traveled
 }
 
 // Update the LCD with the current state and motor data
 static void LCDOut3(void) {
-    // Write your code here
+    //display state
+    Nokia5110_SetCursor2(3,1);
+    Nokia5110_OutString(strState[CurrentState]);
 
+    // display distances
+    Nokia5110_SetCursor2(5,1);
+    Nokia5110_OutSDec(LeftDistance_mm,5);
+    Nokia5110_OutSDec(RightDistance_mm,5);
 }
 
 // Counter for how many times the controller function has been called
@@ -434,37 +660,72 @@ static void Controller3(void) {
 
     // FSM Output: Execute the motor command for the current state
     // Write your code here
+    ControlCommands[CurrentState].MotorFunction(left_permil, right_permil);
 
     // State transition logic based on bump sensors and distance
     bumpRead = Bump_Read();  // Read bump sensor status
     Tachometer_GetDistances(&LeftDistance_mm, &RightDistance_mm);  // Get current wheel distances
 
+    //Find Magnitude
+    int16_t LMag = (LeftDistance_mm < 0) ? -LeftDistance_mm : LeftDistance_mm;
+    int16_t RMag = (RightDistance_mm < 0) ? -RightDistance_mm : RightDistance_mm;
     switch (CurrentState) {
 
         case Stop:  // Remain in Stop state indefinitely
-                break;
+            NextState = Stop;
+            break;
 
         case Forward:  // Moving forward
 
-            // Write your code here
-
+            if ((bumpRead & 0x01) || (bumpRead & 0x02)){ // B1 || B2
+                // B1 -> 30 deg Left; B2 -> 60 deg Left
+                ControlCommands[LeftTurn].dist_mm = (bumpRead & 0x01) ? TR30_DIST : TR60_DIST;
+                NextState = LeftTurn;
+            }
+            else if ((bumpRead & 0x04) || (bumpRead & 0x08)){ // B3 || B4
+                NextState = Backward;
+            }
+            else if ((bumpRead & 0x10) || (bumpRead & 0x20)){ // B5 || B6
+                // B6 -> 30 deg Right; B5 -> 60 deg Right
+                ControlCommands[RightTurn].dist_mm = (bumpRead & 0x20) ? TR30_DIST : TR60_DIST;
+                NextState = RightTurn;
+            }
+            else{
+                if((LeftDistance_mm >= ControlCommands[Forward].dist_mm) || (RightDistance_mm >= ControlCommands[Forward].dist_mm)){
+                    NextState = Stop;
+                }
+                else{
+                    NextState = Forward;
+                }
+            }
             break;
 
         case Backward:  // Moving backward
-
-            // Write your code here
-
+            if ((LMag >= ControlCommands[Backward].dist_mm) || (LMag >= ControlCommands[Backward].dist_mm)) { // Finished Backing Up in Reverse
+                ControlCommands[LeftTurn].dist_mm  = TR90_DIST;
+                NextState = LeftTurn;
+            }
+            else{
+                NextState = Backward;
+            }
             break;
 
         case LeftTurn:  // Turning left
-
             // Write your code here
-
+            if (RMag >= ControlCommands[LeftTurn].dist_mm) {  // Finished left turn
+                NextState = Forward;  // Move forward again
+            }
+            else{
+                NextState = LeftTurn;
+            }
             break;
 
         case RightTurn:  // Turning right
-            if (LeftDistance_mm >= ControlCommands[CurrentState].dist_mm) {  // Finished right turn
+            if (LMag >= ControlCommands[RightTurn].dist_mm) {  // Finished right turn
                 NextState = Forward;  // Move forward again
+            }
+            else{
+                NextState = RightTurn;
             }
             break;
 
@@ -528,6 +789,7 @@ void Program16_3(void) {
 
 
 void main(void){
-    //Program16_1();
+//    Program16_1();
+    //Program16_2();
     Program16_3();
 }
